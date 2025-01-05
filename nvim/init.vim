@@ -1,136 +1,124 @@
-set number
-" 使用 packer.nvim 作为插件管理器
-packadd packer.nvim
+" === 基础设置 ===
+set number                       " 显示行号
+set relativenumber               " 相对行号
+set tabstop=4                    " 制表符宽度
+set shiftwidth=4                 " 自动缩进宽度
+set expandtab                    " 使用空格替代 Tab
+set mouse=a                      " 启用鼠标支持
+set termguicolors                " 启用 24 位颜色支持
+set clipboard=unnamedplus        " 系统剪贴板同步
 
-" packer 配置
+" === 插件管理器配置 ===
 lua << EOF
 require('packer').startup(function(use)
-  -- Packer 自己管理自己
-  use 'wbthomason/packer.nvim'
+    -- Packer 管理自身
+    use 'wbthomason/packer.nvim'
 
-  -- LSP 配置
-  use 'neovim/nvim-lspconfig'
+    -- LSP 和 Rust 开发支持
+    use 'neovim/nvim-lspconfig'          -- Neovim LSP 配置
+    use 'simrat39/rust-tools.nvim'       -- Rust 工具集成
 
-  -- 补全插件
-  use 'hrsh7th/nvim-cmp'
-  use 'hrsh7th/cmp-nvim-lsp'
-  use 'hrsh7th/cmp-buffer'
-  use 'hrsh7th/cmp-path'
+    -- 自动补全和代码片段
+    use 'hrsh7th/nvim-cmp'               -- 主补全插件
+    use 'hrsh7th/cmp-nvim-lsp'           -- LSP 补全源
+    use 'hrsh7th/cmp-buffer'             -- 缓冲区补全源
+    use 'hrsh7th/cmp-path'               -- 路径补全源
+    use 'L3MON4D3/LuaSnip'               -- 代码片段引擎
 
-  -- 额外的补全源（如snippet）
-  use 'L3MON4D3/LuaSnip'
-  use 'saadparwaiz1/cmp_luasnip'
+    -- 目录树插件
+    use {
+        'nvim-tree/nvim-tree.lua',
+        requires = 'nvim-tree/nvim-web-devicons' -- 文件图标支持
+    }
 
-  -- 语法高亮
-  use {
-    'nvim-treesitter/nvim-treesitter',
-    run = ':TSUpdate'
-  }
+    -- 状态栏
+    use 'nvim-lualine/lualine.nvim'
 
-  -- 添加目录树插件及其依赖
-  use {
-    'nvim-tree/nvim-tree.lua',
-    requires = {
-      'nvim-tree/nvim-web-devicons', -- 可选，文件图标
-    },
-  }
+    -- 主题（可选）
+    use 'gruvbox-community/gruvbox'
 end)
-
--- 配置 LSP 服务器
-local lspconfig = require('lspconfig')
-
--- Rust
-lspconfig.rust_analyzer.setup{}
-
--- C
-lspconfig.clangd.setup{}
-
--- Python
--- 使用 pylsp
-lspconfig.pylsp.setup{}
--- 或者使用 pyright
--- lspconfig.pyright.setup{}
-
--- JavaScript/TypeScript
-lspconfig.ts_ls.setup{}
-
--- 补全设置
-local cmp = require'cmp'
-
-cmp.setup({
-  snippet = {
-    expand = function(args)
-      require('luasnip').lsp_expand(args.body)
-    end,
-  },
-  mapping = cmp.mapping.preset.insert({
-    ['<C-b>'] = cmp.mapping.scroll_docs(-4),
-    ['<C-f>'] = cmp.mapping.scroll_docs(4),
-    ['<C-Space>'] = cmp.mapping.complete(),
-    ['<C-e>'] = cmp.mapping.abort(),
-    ['<CR>'] = cmp.mapping.confirm({ select = true }),
-  }),
-  sources = cmp.config.sources({
-    { name = 'nvim_lsp' },
-    { name = 'luasnip' },
-  }, {
-    { name = 'buffer' },
-  })
-})
-
--- 语法高亮
-require'nvim-treesitter.configs'.setup {
-  ensure_installed = { "rust", "c", "python", "javascript" },
-  highlight = {
-    enable = true,
-  },
-}
-
--- 自动保存时格式化代码（可选）
-vim.cmd [[autocmd BufWritePre * lua vim.lsp.buf.format()]]
-
--- 目录树配置
-require("nvim-tree").setup({
-  sort_by = "name", -- 按文件名排序
-  view = {
-    width = 30,
-    side = "left", -- 在左侧显示
-  },
-  renderer = {
-    add_trailing = false,
-    highlight_git = true,
-    group_empty = true,
-  },
-  filters = {
-    dotfiles = false, -- 不显示隐藏文件
-  },
-  on_attach = function(bufnr)
-    local api = require('nvim-tree.api')
-    local opts = { noremap = true, silent = true, buffer = bufnr }
-
-    -- 定义快捷键
-    vim.keymap.set('n', '<CR>', api.node.open.edit, opts)           -- 回车打开文件
-    vim.keymap.set('n', '<C-e>', api.tree.close, opts)             -- Ctrl + e 关闭树
-    vim.keymap.set('n', '<C-r>', api.tree.reload, opts)            -- Ctrl + r 刷新树
-    vim.keymap.set('n', 'a', api.fs.create, opts)                  -- 创建文件/文件夹
-    vim.keymap.set('n', 'd', api.fs.remove, opts)                  -- 删除文件/文件夹
-    vim.keymap.set('n', 'r', api.fs.rename, opts)                  -- 重命名
-    vim.keymap.set('n', 'u', api.tree.change_root_to_parent, opts) -- 上一级目录
-  end,
-})
-
--- 快捷键设置
-vim.api.nvim_set_keymap('n', '<C-n>', ':NvimTreeToggle<CR>', { noremap = true, silent = true })
-
--- 自动打开目录树（当启动时没有打开任何文件时）
-vim.api.nvim_create_autocmd("VimEnter", {
-  callback = function()
-    if vim.fn.argc() == 0 then
-      require("nvim-tree.api").tree.open()
-    end
-  end
-})
-
 EOF
 
-nnoremap <leader>a :!google-chrome-stable<CR>
+" === 配置 LSP 和 Rust Tools ===
+lua << EOF
+local nvim_lsp = require('lspconfig')
+local rust_tools = require('rust-tools')
+
+-- 配置 rust-analyzer
+rust_tools.setup({
+    server = {
+        on_attach = function(_, bufnr)
+            -- LSP 快捷键绑定
+            local bufopts = { noremap=true, silent=true, buffer=bufnr }
+            vim.keymap.set('n', 'gd', vim.lsp.buf.definition, bufopts)
+            vim.keymap.set('n', 'K', vim.lsp.buf.hover, bufopts)
+            vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, bufopts)
+        end,
+        settings = {
+            ["rust-analyzer"] = {
+                checkOnSave = {
+                    command = "clippy"  -- 使用 Clippy 检查代码
+                },
+                diagnostics = {
+                    disabled = { "unresolved-proc-macro" }  -- 禁用耗资源诊断
+                }
+            }
+        }
+    },
+    tools = {
+        inlay_hints = {
+            only_current_line = true,  -- 避免全局提示导致卡顿
+            show_parameter_hints = true,
+        }
+    }
+})
+EOF
+
+" === 自动补全配置 ===
+lua << EOF
+local cmp = require('cmp')
+cmp.setup({
+    mapping = {
+        ['<C-n>'] = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Insert }),
+        ['<C-p>'] = cmp.mapping.select_prev_item({ behavior = cmp.SelectBehavior.Insert }),
+        ['<CR>'] = cmp.mapping.confirm({ select = true }),
+    },
+    sources = {
+        { name = 'nvim_lsp' },
+        { name = 'buffer' },
+        { name = 'path' },
+    }
+})
+EOF
+
+" === 目录树配置 ===
+lua << EOF
+require("nvim-tree").setup({
+    view = {
+        width = 30,
+        side = "left",
+    },
+    git = {
+        enable = true,
+    },
+    diagnostics = {
+        enable = true,
+    },
+})
+EOF
+
+" 快捷键绑定
+nnoremap <C-n> :NvimTreeToggle<CR>  " Ctrl+n 打开/关闭目录树
+
+" === 状态栏配置 ===
+lua << EOF
+require('lualine').setup({
+    options = {
+        theme = 'gruvbox',
+        icons_enabled = true,
+    }
+})
+EOF
+
+" === 主题设置（可选） ===
+colorscheme gruvbox
