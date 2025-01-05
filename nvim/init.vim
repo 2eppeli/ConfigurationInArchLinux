@@ -1,95 +1,136 @@
-" 显示行号
 set number
+" 使用 packer.nvim 作为插件管理器
+packadd packer.nvim
 
-" 显示相对行号
-" set relativenumber
+" packer 配置
+lua << EOF
+require('packer').startup(function(use)
+  -- Packer 自己管理自己
+  use 'wbthomason/packer.nvim'
 
+  -- LSP 配置
+  use 'neovim/nvim-lspconfig'
 
-call plug#begin('~/.local/share/nvim/plugged')
+  -- 补全插件
+  use 'hrsh7th/nvim-cmp'
+  use 'hrsh7th/cmp-nvim-lsp'
+  use 'hrsh7th/cmp-buffer'
+  use 'hrsh7th/cmp-path'
 
-" Neovim LSP 支持
-Plug 'neovim/nvim-lspconfig'
+  -- 额外的补全源（如snippet）
+  use 'L3MON4D3/LuaSnip'
+  use 'saadparwaiz1/cmp_luasnip'
 
-" 颜色
-Plug 'joshdick/onedark.vim'
-
-" 自动补全引擎
-Plug 'hrsh7th/nvim-cmp'
-Plug 'hrsh7th/cmp-nvim-lsp'
-Plug 'hrsh7th/cmp-buffer'
-Plug 'hrsh7th/cmp-path'
-Plug 'hrsh7th/cmp-cmdline'
-Plug 'hrsh7th/cmp-vsnip'
-Plug 'hrsh7th/vim-vsnip'
-Plug 'kyazdani42/nvim-tree.lua'
-Plug 'kyazdani42/nvim-web-devicons'
-
-
-" 代码高亮和代码解析（Treesitter）
-Plug 'nvim-treesitter/nvim-treesitter', {'do': ':TSUpdate'}
-
-" Rust 支持
-Plug 'simrat39/rust-tools.nvim'
-
-" Python 支持
-Plug 'psf/black' " Python 格式化工具
-
-" 文件搜索
-Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
-Plug 'junegunn/fzf.vim'
-
-call plug#end()
-
-" 启用 Treesitter 进行语法高亮
-lua <<EOF
-require'nvim-treesitter.configs'.setup {
-  ensure_installed = {"c", "rust", "python"},  -- 根据需要增加语言支持
-  highlight = { enable = true },
-}
-EOF
-
-" 设置补全
-lua <<EOF
-  local cmp = require'cmp'
-  cmp.setup {
-    snippet = {
-      expand = function(args)
-        vim.fn["vsnip#anonymous"](args.body)
-      end,
-    },
-    mapping = {
-      ['<Tab>'] = cmp.mapping.select_next_item(),
-      ['<S-Tab>'] = cmp.mapping.select_prev_item(),
-      ['<C-d>'] = cmp.mapping.scroll_docs(-4),
-      ['<C-f>'] = cmp.mapping.scroll_docs(4),
-      ['<C-Space>'] = cmp.mapping.complete(),
-      ['<C-e>'] = cmp.mapping.close(),
-      ['<CR>'] = cmp.mapping.confirm({ select = true }),
-    },
-    sources = {
-      { name = 'nvim_lsp' },
-      { name = 'vsnip' },
-      { name = 'buffer' },
-    }
+  -- 语法高亮
+  use {
+    'nvim-treesitter/nvim-treesitter',
+    run = ':TSUpdate'
   }
+
+  -- 添加目录树插件及其依赖
+  use {
+    'nvim-tree/nvim-tree.lua',
+    requires = {
+      'nvim-tree/nvim-web-devicons', -- 可选，文件图标
+    },
+  }
+end)
+
+-- 配置 LSP 服务器
+local lspconfig = require('lspconfig')
+
+-- Rust
+lspconfig.rust_analyzer.setup{}
+
+-- C
+lspconfig.clangd.setup{}
+
+-- Python
+-- 使用 pylsp
+lspconfig.pylsp.setup{}
+-- 或者使用 pyright
+-- lspconfig.pyright.setup{}
+
+-- JavaScript/TypeScript
+lspconfig.ts_ls.setup{}
+
+-- 补全设置
+local cmp = require'cmp'
+
+cmp.setup({
+  snippet = {
+    expand = function(args)
+      require('luasnip').lsp_expand(args.body)
+    end,
+  },
+  mapping = cmp.mapping.preset.insert({
+    ['<C-b>'] = cmp.mapping.scroll_docs(-4),
+    ['<C-f>'] = cmp.mapping.scroll_docs(4),
+    ['<C-Space>'] = cmp.mapping.complete(),
+    ['<C-e>'] = cmp.mapping.abort(),
+    ['<CR>'] = cmp.mapping.confirm({ select = true }),
+  }),
+  sources = cmp.config.sources({
+    { name = 'nvim_lsp' },
+    { name = 'luasnip' },
+  }, {
+    { name = 'buffer' },
+  })
+})
+
+-- 语法高亮
+require'nvim-treesitter.configs'.setup {
+  ensure_installed = { "rust", "c", "python", "javascript" },
+  highlight = {
+    enable = true,
+  },
+}
+
+-- 自动保存时格式化代码（可选）
+vim.cmd [[autocmd BufWritePre * lua vim.lsp.buf.format()]]
+
+-- 目录树配置
+require("nvim-tree").setup({
+  sort_by = "name", -- 按文件名排序
+  view = {
+    width = 30,
+    side = "left", -- 在左侧显示
+  },
+  renderer = {
+    add_trailing = false,
+    highlight_git = true,
+    group_empty = true,
+  },
+  filters = {
+    dotfiles = false, -- 不显示隐藏文件
+  },
+  on_attach = function(bufnr)
+    local api = require('nvim-tree.api')
+    local opts = { noremap = true, silent = true, buffer = bufnr }
+
+    -- 定义快捷键
+    vim.keymap.set('n', '<CR>', api.node.open.edit, opts)           -- 回车打开文件
+    vim.keymap.set('n', '<C-e>', api.tree.close, opts)             -- Ctrl + e 关闭树
+    vim.keymap.set('n', '<C-r>', api.tree.reload, opts)            -- Ctrl + r 刷新树
+    vim.keymap.set('n', 'a', api.fs.create, opts)                  -- 创建文件/文件夹
+    vim.keymap.set('n', 'd', api.fs.remove, opts)                  -- 删除文件/文件夹
+    vim.keymap.set('n', 'r', api.fs.rename, opts)                  -- 重命名
+    vim.keymap.set('n', 'u', api.tree.change_root_to_parent, opts) -- 上一级目录
+  end,
+})
+
+-- 快捷键设置
+vim.api.nvim_set_keymap('n', '<C-n>', ':NvimTreeToggle<CR>', { noremap = true, silent = true })
+
+-- 自动打开目录树（当启动时没有打开任何文件时）
+vim.api.nvim_create_autocmd("VimEnter", {
+  callback = function()
+    if vim.fn.argc() == 0 then
+      require("nvim-tree.api").tree.open()
+    end
+  end
+})
+
 EOF
 
-" 启用 LSP
-lua <<EOF
-require'lspconfig'.clangd.setup{}      -- C/C++ LSP
-require'lspconfig'.rust_analyzer.setup{}  -- Rust LSP
-require'lspconfig'.pyright.setup{}     -- Python LSP
-EOF
-
-augroup FormatAutogroup
-  autocmd!
-  autocmd BufWritePost *.py execute ':Black'
-augroup END
-
-nnoremap <C-p> :Files<CR>
-nnoremap <C-n> :NvimTreeToggle<CR>
-
-colorscheme onedark
-
-lua require'nvim-tree'.setup {}
-
+nnoremap <leader>a :!google-chrome-stable<CR>
