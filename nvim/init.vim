@@ -25,11 +25,8 @@ require('packer').startup(function(use)
     use 'hrsh7th/cmp-path'               -- 路径补全源
     use 'L3MON4D3/LuaSnip'               -- 代码片段引擎
 
-    -- 目录树插件
-    use {
-        'nvim-tree/nvim-tree.lua',
-        requires = 'nvim-tree/nvim-web-devicons' -- 文件图标支持
-    }
+    -- 替换 nvim-tree 使用 NERDTree
+    use 'preservim/nerdtree'
 
     -- 状态栏
     use 'nvim-lualine/lualine.nvim'
@@ -91,24 +88,14 @@ cmp.setup({
 })
 EOF
 
-" === 目录树配置 ===
-lua << EOF
-require("nvim-tree").setup({
-    view = {
-        width = 30,
-        side = "left",
-    },
-    git = {
-        enable = true,
-    },
-    diagnostics = {
-        enable = true,
-    },
-})
-EOF
+" === NERDTree 配置 ===
+" 自动打开 NERDTree，当没有文件被指定时
+autocmd StdinReadPre * let s:std_in=1
+autocmd VimEnter * if argc() == 0 && !exists("s:std_in") | NERDTree | endif
 
 " 快捷键绑定
-nnoremap <C-n> :NvimTreeToggle<CR>  " Ctrl+n 打开/关闭目录树
+nnoremap <C-n> :NERDTreeToggle<CR>  " Ctrl+n 打开/关闭 NERDTree
+nnoremap <C-f> :NERDTreeFind<CR>    " Ctrl+f 快速找到当前文件在 NERDTree 中的位置
 
 " === 状态栏配置 ===
 lua << EOF
